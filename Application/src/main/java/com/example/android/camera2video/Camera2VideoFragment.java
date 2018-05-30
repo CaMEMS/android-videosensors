@@ -237,6 +237,7 @@ public class Camera2VideoFragment extends Fragment
     private Sensor mGyro;
     private Sensor mAccel;
     private ImageReader mImageReader;
+    private CameraCharacteristics mCharacteristics;
 
     private MyStringBuffer mGyroBuffer;
     private MyStringBuffer mAccelBuffer;
@@ -475,11 +476,11 @@ public class Camera2VideoFragment extends Fragment
             String cameraId = manager.getCameraIdList()[0];
 
             // Choose the sizes for camera preview and video recording
-            CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraId);
+            mCharacteristics = manager.getCameraCharacteristics(cameraId);
 
-            StreamConfigurationMap map = characteristics
+            StreamConfigurationMap map = mCharacteristics
                     .get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
-            mSensorOrientation = characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION);
+            mSensorOrientation = mCharacteristics.get(CameraCharacteristics.SENSOR_ORIENTATION);
             if (map == null) {
                 throw new RuntimeException("Cannot get available preview/video sizes");
             }
@@ -732,7 +733,25 @@ public class Camera2VideoFragment extends Fragment
         totalInfo.append("model=" + android.os.Build.MODEL + "\n");
         totalInfo.append("id=" + android.os.Build.ID + "\n");
 
+        if (mCharacteristics.get(CameraCharacteristics.SENSOR_INFO_TIMESTAMP_SOURCE) == CameraCharacteristics.SENSOR_INFO_TIMESTAMP_SOURCE_REALTIME) {
+            totalInfo.append("timestamp_source=REALTIME\n");
+        } else {
+            totalInfo.append("timestamp_source=UNKNOWN\n");
+        }
 
+        int[] osModes = mCharacteristics.get(CameraCharacteristics.LENS_INFO_AVAILABLE_OPTICAL_STABILIZATION);
+        if (osModes == null) {
+            totalInfo.append("optical_stab=no\n");
+        } else {
+            totalInfo.append("optical_stab=yes\n");
+        }
+
+        int[] dsModes = mCharacteristics.get(CameraCharacteristics.CONTROL_AVAILABLE_VIDEO_STABILIZATION_MODES);
+        if (dsModes[0] == CameraCharacteristics.CONTROL_VIDEO_STABILIZATION_MODE_ON) {
+            totalInfo.append("digital_stab=yes\n");
+        } else {
+            totalInfo.append("digital_stab=no\n");
+        }
 
         return totalInfo;
     }
