@@ -234,7 +234,6 @@ public class Camera2VideoFragment extends Fragment
 
     private SensorManager mSensorManager;
     private Sensor mGyro;
-    private long mStartTime = -1;
     private ImageReader mImageReader;
 
     private MyStringBuffer mStringBuffer;
@@ -318,7 +317,14 @@ public class Camera2VideoFragment extends Fragment
     public void onResume() {
         super.onResume();
         startBackgroundThread();
-        mSensorManager.registerListener(this, mGyro, SensorManager.SENSOR_DELAY_FASTEST);
+
+        if (mGyro != null) {
+            mSensorManager.registerListener(this, mGyro, SensorManager.SENSOR_DELAY_FASTEST);
+        } else {
+            final Activity activity = getActivity();
+            Toast.makeText(activity, "Cannot access the gyro.", Toast.LENGTH_SHORT).show();
+        }
+
         if (mTextureView.isAvailable()) {
             openCamera(mTextureView.getWidth(), mTextureView.getHeight());
         } else {
@@ -331,6 +337,7 @@ public class Camera2VideoFragment extends Fragment
         closeCamera();
         stopBackgroundThread();
         super.onPause();
+        mSensorManager.unregisterListener(this);
     }
 
     @Override
@@ -731,8 +738,6 @@ public class Camera2VideoFragment extends Fragment
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         }
-
-//        mStringBuffer = new MyStringBuffer(gyroFile);
     }
 
     private void closePreviewSession() {
@@ -751,7 +756,6 @@ public class Camera2VideoFragment extends Fragment
     private void stopRecordingVideo() {
         // UI
         mIsRecordingVideo = false;
-        mStartTime = -1;
 
         mButtonVideo.setText(R.string.record);
         // Stop recording
@@ -866,7 +870,6 @@ public class Camera2VideoFragment extends Fragment
                 @Override
                 public void onImageAvailable(ImageReader reader) {
                     if (mIsRecordingVideo) {
-//                        mFrameCount++;
                         mStringBuffer.append("f\n");
                     }
                     Image img = null;
