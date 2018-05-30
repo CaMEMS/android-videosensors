@@ -454,7 +454,7 @@ public class Camera2VideoFragment extends Fragment
         CameraManager manager = (CameraManager) activity.getSystemService(Context.CAMERA_SERVICE);
         try {
             mImageReader = ImageReader.newInstance(width / 16, height / 16, ImageFormat.YUV_420_888, 2);
-            mImageReader.setOnImageAvailableListener(mOnImageAvailableListener, mBackgroundHandler);
+            mImageReader.setOnImageAvailableListener(mOnImageAvailableListener, null);
 
             Log.d(TAG, "tryAcquire");
             if (!mCameraOpenCloseLock.tryAcquire(2500, TimeUnit.MILLISECONDS)) {
@@ -845,10 +845,6 @@ public class Camera2VideoFragment extends Fragment
     public void onSensorChanged(SensorEvent sensorEvent) {
         if (mIsRecordingVideo) {
             if (sensorEvent.sensor.getType() == Sensor.TYPE_GYROSCOPE) {
-
-//                if (mStartTime == -1) {
-//                    mStartTime = sensorEvent.timestamp;
-//                }
                 StringBuilder sensorData = new StringBuilder();
                 sensorData.append(sensorEvent.values[0]);
                 sensorData.append(',');
@@ -856,7 +852,7 @@ public class Camera2VideoFragment extends Fragment
                 sensorData.append(',');
                 sensorData.append(sensorEvent.values[2]);
                 sensorData.append(',');
-                sensorData.append(sensorEvent.timestamp - mStartTime);
+                sensorData.append(sensorEvent.timestamp);
                 sensorData.append('\n');
 
                 mStringBuffer.append(sensorData.toString());
