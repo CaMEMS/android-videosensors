@@ -45,6 +45,7 @@ import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.Image;
 import android.media.ImageReader;
 import android.media.MediaRecorder;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
@@ -724,6 +725,18 @@ public class Camera2VideoFragment extends Fragment
 
     }
 
+    private StringBuilder gatherDeviceInfo() {
+        StringBuilder totalInfo = new StringBuilder();
+        totalInfo.append("version=" + android.os.Build.VERSION.RELEASE + "\n");
+        totalInfo.append("apiLevel=" + android.os.Build.VERSION.SDK_INT + "\n");
+        totalInfo.append("model=" + android.os.Build.MODEL + "\n");
+        totalInfo.append("id=" + android.os.Build.ID + "\n");
+
+
+
+        return totalInfo;
+    }
+
     private void setUpSensorWriter() {
         String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
         File wallpaperDirectory = new File(Environment.getExternalStorageDirectory().getPath() + "/videoSensor/");
@@ -732,15 +745,21 @@ public class Camera2VideoFragment extends Fragment
         File wallpaperDirectory1 = new File(Environment.getExternalStorageDirectory().getPath() + "/videoSensor/" + timestamp);
         wallpaperDirectory1.mkdirs();
 
-        String gyroFile = Environment.getExternalStorageDirectory().getPath() + "/videoSensor/" + timestamp + "/" + timestamp + "gyro" + ".csv";
-        String accelFile = Environment.getExternalStorageDirectory().getPath() + "/videoSensor/" + timestamp + "/" + timestamp + "acc" + ".csv";
-        mNextVideoAbsolutePath = Environment.getExternalStorageDirectory().getPath() + "/videoSensor/" + timestamp + "/" + timestamp + ".mp4";
+        String directoryPath = Environment.getExternalStorageDirectory().getPath() + "/videoSensor/" + timestamp + "/";
+        String gyroFile =  directoryPath + timestamp + "gyro" + ".csv";
+        String accelFile = directoryPath + timestamp + "acc" + ".csv";
+        mNextVideoAbsolutePath = directoryPath + timestamp + ".mp4";
+        String contextFile = directoryPath + "context.txt";
 
         try {
             PrintStream gyroWriter = new PrintStream(gyroFile);
             PrintStream accelWriter = new PrintStream(accelFile);
             mGyroBuffer = new MyStringBuffer(gyroWriter);
             mAccelBuffer = new MyStringBuffer(accelWriter);
+
+            PrintStream contextWriter = new PrintStream(contextFile);
+            contextWriter.append(gatherDeviceInfo());
+            contextWriter.close();
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         }
