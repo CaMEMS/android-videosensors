@@ -234,9 +234,11 @@ public class Camera2VideoFragment extends Fragment
 
     private SensorManager mSensorManager;
     private Sensor mGyro;
+    private Sensor mAccel;
     private ImageReader mImageReader;
 
-    private MyStringBuffer mStringBuffer;
+    private MyStringBuffer mGyroBuffer;
+    private MyStringBuffer mAccelBuffer;
 
     public static Camera2VideoFragment newInstance() {
         return new Camera2VideoFragment();
@@ -311,6 +313,7 @@ public class Camera2VideoFragment extends Fragment
         super.onCreate(savedInstanceState);
         mSensorManager = (SensorManager) getActivity().getSystemService(Context.SENSOR_SERVICE);
         mGyro = mSensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
+        mAccel = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
     }
 
     @Override
@@ -324,6 +327,7 @@ public class Camera2VideoFragment extends Fragment
             final Activity activity = getActivity();
             Toast.makeText(activity, "Cannot access the gyro.", Toast.LENGTH_SHORT).show();
         }
+        mSensorManager.registerListener(this, mAccel, SensorManager.SENSOR_DELAY_UI);
 
         if (mTextureView.isAvailable()) {
             openCamera(mTextureView.getWidth(), mTextureView.getHeight());
@@ -460,7 +464,7 @@ public class Camera2VideoFragment extends Fragment
         }
         CameraManager manager = (CameraManager) activity.getSystemService(Context.CAMERA_SERVICE);
         try {
-            mImageReader = ImageReader.newInstance(width / 16, height / 16, ImageFormat.YUV_420_888, 2);
+            mImageReader = ImageReader.newInstance(width / 16, height / 16, ImageFormat.YUV_420_888, 10);
             mImageReader.setOnImageAvailableListener(mOnImageAvailableListener, null);
 
             Log.d(TAG, "tryAcquire");
@@ -729,12 +733,14 @@ public class Camera2VideoFragment extends Fragment
         wallpaperDirectory1.mkdirs();
 
         String gyroFile = Environment.getExternalStorageDirectory().getPath() + "/videoSensor/" + timestamp + "/" + timestamp + "gyro" + ".csv";
+        String accelFile = Environment.getExternalStorageDirectory().getPath() + "/videoSensor/" + timestamp + "/" + timestamp + "acc" + ".csv";
         mNextVideoAbsolutePath = Environment.getExternalStorageDirectory().getPath() + "/videoSensor/" + timestamp + "/" + timestamp + ".mp4";
 
         try {
             PrintStream gyroWriter = new PrintStream(gyroFile);
-            mStringBuffer = new MyStringBuffer(gyroWriter);
-
+            PrintStream accelWriter = new PrintStream(accelFile);
+            mGyroBuffer = new MyStringBuffer(gyroWriter);
+            mAccelBuffer = new MyStringBuffer(accelWriter);
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         }
@@ -770,7 +776,8 @@ public class Camera2VideoFragment extends Fragment
             Log.d(TAG, "Video saved: " + mNextVideoAbsolutePath);
         }
 
-        mStringBuffer.close();
+        mGyroBuffer.close();
+        mAccelBuffer.close();
         mNextVideoAbsolutePath = null;
         startPreview();
     }
@@ -848,8 +855,11 @@ public class Camera2VideoFragment extends Fragment
     @Override
     public void onSensorChanged(SensorEvent sensorEvent) {
         if (mIsRecordingVideo) {
-            if (sensorEvent.sensor.getType() == Sensor.TYPE_GYROSCOPE) {
-                StringBuilder sensorData = new StringBuilder();
+
+            int sensorType = sensorEvent.sensor.getType();
+            StringBuilder sensorData = new StringBuilder();
+
+            if (sensorType == Sensor.TYPE_GYROSCOPE || sensorType == Sensor.TYPE_ACCELEROMETER) {
                 sensorData.append(sensorEvent.values[0]);
                 sensorData.append(',');
                 sensorData.append(sensorEvent.values[1]);
@@ -859,8 +869,13 @@ public class Camera2VideoFragment extends Fragment
                 sensorData.append(sensorEvent.timestamp);
                 sensorData.append('\n');
 
-                mStringBuffer.append(sensorData.toString());
+                if (sensorType == Sensor.TYPE_GYROSCOPE) {
+                    mGyroBuffer.append(sensorData.toString());
+                } else {
+                    mAccelBuffer.append(sensorData.toString());
+                }
             }
+
         }
     }
 
@@ -869,11 +884,13 @@ public class Camera2VideoFragment extends Fragment
 
                 @Override
                 public void onImageAvailable(ImageReader reader) {
-                    if (mIsRecordingVideo) {
-                        mStringBuffer.append("f\n");
-                    }
                     Image img = null;
-                    img = reader.acquireLatestImage();
+                    img = reader.acquireNextImage();
+
+                    if (mIsRecordingVideo && img != null) {
+                        mGyroBuffer.append("f," + img.getTimestamp() + "\n");
+                    }
+
                     if (img != null)
                         img.close();
                 }
