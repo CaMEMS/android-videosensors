@@ -241,6 +241,7 @@ public class Camera2VideoFragment extends Fragment
 
     private MyStringBuffer mGyroBuffer;
     private MyStringBuffer mAccelBuffer;
+    private ContextCollector mContextCollector;
 
     public static Camera2VideoFragment newInstance() {
         return new Camera2VideoFragment();
@@ -670,6 +671,7 @@ public class Camera2VideoFragment extends Fragment
         try {
             closePreviewSession();
             setUpSensorWriter();
+            mContextCollector.gatherInfo();
             setUpMediaRecorder();
             SurfaceTexture texture = mTextureView.getSurfaceTexture();
             assert texture != null;
@@ -726,36 +728,6 @@ public class Camera2VideoFragment extends Fragment
 
     }
 
-    private StringBuilder gatherDeviceInfo() {
-        StringBuilder totalInfo = new StringBuilder();
-        totalInfo.append("version=" + android.os.Build.VERSION.RELEASE + "\n");
-        totalInfo.append("apiLevel=" + android.os.Build.VERSION.SDK_INT + "\n");
-        totalInfo.append("model=" + android.os.Build.MODEL + "\n");
-        totalInfo.append("id=" + android.os.Build.ID + "\n");
-
-        if (mCharacteristics.get(CameraCharacteristics.SENSOR_INFO_TIMESTAMP_SOURCE) == CameraCharacteristics.SENSOR_INFO_TIMESTAMP_SOURCE_REALTIME) {
-            totalInfo.append("timestamp_source=REALTIME\n");
-        } else {
-            totalInfo.append("timestamp_source=UNKNOWN\n");
-        }
-
-        int[] osModes = mCharacteristics.get(CameraCharacteristics.LENS_INFO_AVAILABLE_OPTICAL_STABILIZATION);
-        if (osModes == null) {
-            totalInfo.append("optical_stab=no\n");
-        } else {
-            totalInfo.append("optical_stab=yes\n");
-        }
-
-        int[] dsModes = mCharacteristics.get(CameraCharacteristics.CONTROL_AVAILABLE_VIDEO_STABILIZATION_MODES);
-        if (dsModes[0] == CameraCharacteristics.CONTROL_VIDEO_STABILIZATION_MODE_ON) {
-            totalInfo.append("digital_stab=yes\n");
-        } else {
-            totalInfo.append("digital_stab=no\n");
-        }
-
-        return totalInfo;
-    }
-
     private void setUpSensorWriter() {
         String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
         File wallpaperDirectory = new File(Environment.getExternalStorageDirectory().getPath() + "/videoSensor/");
@@ -768,17 +740,16 @@ public class Camera2VideoFragment extends Fragment
         String gyroFile =  directoryPath + timestamp + "gyro" + ".csv";
         String accelFile = directoryPath + timestamp + "acc" + ".csv";
         mNextVideoAbsolutePath = directoryPath + timestamp + ".mp4";
-        String contextFile = directoryPath + "context.txt";
+        String contextFile = directoryPath + "context.ini";
 
         try {
             PrintStream gyroWriter = new PrintStream(gyroFile);
             PrintStream accelWriter = new PrintStream(accelFile);
             mGyroBuffer = new MyStringBuffer(gyroWriter);
             mAccelBuffer = new MyStringBuffer(accelWriter);
-
+            
             PrintStream contextWriter = new PrintStream(contextFile);
-            contextWriter.append(gatherDeviceInfo());
-            contextWriter.close();
+            mContextCollector = new ContextCollector(contextWriter, mCharacteristics);
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         }
