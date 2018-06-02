@@ -93,6 +93,7 @@ public class Camera2VideoFragment extends Fragment
     private static final String[] VIDEO_PERMISSIONS = {
             Manifest.permission.CAMERA,
             Manifest.permission.RECORD_AUDIO,
+            Manifest.permission.WRITE_EXTERNAL_STORAGE,
     };
 
     static {
