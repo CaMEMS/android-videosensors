@@ -1,4 +1,4 @@
-package com.example.android.camera2video;
+package my.simple.app.camera2video;
 
 import android.os.AsyncTask;
 
