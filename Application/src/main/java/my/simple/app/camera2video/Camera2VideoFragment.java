@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.example.android.camera2video;
+package my.simple.app.camera2video;
 
 import android.Manifest;
 import android.app.Activity;
@@ -23,7 +23,6 @@ import android.app.Dialog;
 import android.app.DialogFragment;
 import android.app.Fragment;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.ImageFormat;
@@ -39,13 +38,11 @@ import android.hardware.camera2.CameraCaptureSession;
 import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
-import android.hardware.camera2.CameraMetadata;
 import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.Image;
 import android.media.ImageReader;
 import android.media.MediaRecorder;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
@@ -75,6 +72,8 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
@@ -305,8 +304,8 @@ public class Camera2VideoFragment extends Fragment
 
     @Override
     public void onViewCreated(final View view, Bundle savedInstanceState) {
-        mTextureView = (AutoFitTextureView) view.findViewById(R.id.texture);
-        mButtonVideo = (Button) view.findViewById(R.id.video);
+        mTextureView = view.findViewById(R.id.texture);
+        mButtonVideo = view.findViewById(R.id.video);
         mButtonVideo.setOnClickListener(this);
         view.findViewById(R.id.info).setOnClickListener(this);
     }
@@ -316,8 +315,14 @@ public class Camera2VideoFragment extends Fragment
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         mSensorManager = (SensorManager) getActivity().getSystemService(Context.SENSOR_SERVICE);
-        mGyro = mSensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
-        mAccel = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        if (mSensorManager != null) {
+            mGyro = mSensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
+            mAccel = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        } else {
+            String text = "Failed to access SensorManager";
+            Toast.makeText(getActivity(),text,Toast.LENGTH_LONG) .show();
+            Log.wtf("CaMEMS",text);
+        }
     }
 
     @Override
@@ -328,10 +333,13 @@ public class Camera2VideoFragment extends Fragment
         if (mGyro != null) {
             mSensorManager.registerListener(this, mGyro, SensorManager.SENSOR_DELAY_FASTEST);
         } else {
-            final Activity activity = getActivity();
-            Toast.makeText(activity, "Cannot access the gyro.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(getActivity(), "Cannot access the gyro.", Toast.LENGTH_SHORT).show();
         }
-        mSensorManager.registerListener(this, mAccel, SensorManager.SENSOR_DELAY_UI);
+        if(mSensorManager!=null) {
+            mSensorManager.registerListener(this, mAccel, SensorManager.SENSOR_DELAY_UI);
+        } else {
+            Toast.makeText(getActivity(), "Cannot access the accelerometer.", Toast.LENGTH_SHORT).show();
+        }
 
         if (mTextureView.isAvailable()) {
             openCamera(mTextureView.getWidth(), mTextureView.getHeight());
@@ -475,7 +483,8 @@ public class Camera2VideoFragment extends Fragment
             if (!mCameraOpenCloseLock.tryAcquire(2500, TimeUnit.MILLISECONDS)) {
                 throw new RuntimeException("Time out waiting to lock camera opening.");
             }
-            String cameraId = manager.getCameraIdList()[0];
+
+            String cameraId = Objects.requireNonNull(manager).getCameraIdList()[0];
 
             // Choose the sizes for camera preview and video recording
             mCharacteristics = manager.getCameraCharacteristics(cameraId);
@@ -659,12 +668,13 @@ public class Camera2VideoFragment extends Fragment
         mMediaRecorder.prepare();
     }
 
+/*
     private String getVideoFilePath(Context context) {
         final File dir = context.getExternalFilesDir(null);
         return (dir == null ? "" : (dir.getAbsolutePath() + "/"))
                 + System.currentTimeMillis() + ".mp4";
     }
-
+*/
     private void startRecordingVideo() {
         if (null == mCameraDevice || !mTextureView.isAvailable() || null == mPreviewSize) {
             return;
@@ -702,16 +712,13 @@ public class Camera2VideoFragment extends Fragment
                 public void onConfigured(@NonNull CameraCaptureSession cameraCaptureSession) {
                     mPreviewSession = cameraCaptureSession;
                     updatePreview();
-                    getActivity().runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            // UI
-                            mButtonVideo.setText(R.string.stop);
-                            mIsRecordingVideo = true;
+                    getActivity().runOnUiThread(() -> {
+                        // UI
+                        mButtonVideo.setText(R.string.stop);
+                        mIsRecordingVideo = true;
 
-                            // Start recording
-                            mMediaRecorder.start();
-                        }
+                        // Start recording
+                        mMediaRecorder.start();
                     });
                 }
 
@@ -730,14 +737,14 @@ public class Camera2VideoFragment extends Fragment
     }
 
     private void setUpSensorWriter() {
-        String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-        File wallpaperDirectory = new File(Environment.getExternalStorageDirectory().getPath() + "/videoSensor/");
-        wallpaperDirectory.mkdirs();
-
-        File wallpaperDirectory1 = new File(Environment.getExternalStorageDirectory().getPath() + "/videoSensor/" + timestamp);
-        wallpaperDirectory1.mkdirs();
-
+        String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date());
         String directoryPath = Environment.getExternalStorageDirectory().getPath() + "/videoSensor/" + timestamp + "/";
+
+        boolean dirsOk = new File(directoryPath).mkdirs();
+        if (!dirsOk) {
+            Toast.makeText(getActivity(), "Failed to create directory.", Toast.LENGTH_LONG).show();
+        }
+
         String gyroFile =  directoryPath + timestamp + "gyro" + ".csv";
         String accelFile = directoryPath + timestamp + "acc" + ".csv";
         mNextVideoAbsolutePath = directoryPath + timestamp + ".mp4";
@@ -822,12 +829,7 @@ public class Camera2VideoFragment extends Fragment
             final Activity activity = getActivity();
             return new AlertDialog.Builder(activity)
                     .setMessage(getArguments().getString(ARG_MESSAGE))
-                    .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-                        @Override
-                        public void onClick(DialogInterface dialogInterface, int i) {
-                            activity.finish();
-                        }
-                    })
+                    .setPositiveButton(android.R.string.ok, (dialogInterface, i) -> activity.finish())
                     .create();
         }
 
@@ -840,20 +842,10 @@ public class Camera2VideoFragment extends Fragment
             final Fragment parent = getParentFragment();
             return new AlertDialog.Builder(getActivity())
                     .setMessage(R.string.permission_request)
-                    .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-                        @Override
-                        public void onClick(DialogInterface dialog, int which) {
-                            FragmentCompat.requestPermissions(parent, VIDEO_PERMISSIONS,
-                                    REQUEST_VIDEO_PERMISSIONS);
-                        }
-                    })
+                    .setPositiveButton(android.R.string.ok, (dialog, which) -> FragmentCompat.requestPermissions(parent, VIDEO_PERMISSIONS,
+                            REQUEST_VIDEO_PERMISSIONS))
                     .setNegativeButton(android.R.string.cancel,
-                            new DialogInterface.OnClickListener() {
-                                @Override
-                                public void onClick(DialogInterface dialog, int which) {
-                                    parent.getActivity().finish();
-                                }
-                            })
+                            (dialog, which) -> parent.getActivity().finish())
                     .create();
         }
 
@@ -894,8 +886,7 @@ public class Camera2VideoFragment extends Fragment
 
                 @Override
                 public void onImageAvailable(ImageReader reader) {
-                    Image img = null;
-                    img = reader.acquireNextImage();
+                    Image img = reader.acquireNextImage();
 
                     if (mIsRecordingVideo && img != null) {
                         mGyroBuffer.append("f," + img.getTimestamp() + "\n");

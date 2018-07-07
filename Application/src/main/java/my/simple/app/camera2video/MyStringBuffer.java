@@ -1,4 +1,4 @@
-package com.example.android.camera2video;
+package my.simple.app.camera2video;
 
 import android.os.AsyncTask;
 
@@ -10,9 +10,9 @@ public final class MyStringBuffer {
     private StringBuffer mBuilderToFile;
     private PrintStream mGyroWriter;
 
-    private static int mCharCount = 262144;
+    private static final int mCharCount = 262144;
 
-    public MyStringBuffer(PrintStream printStream) {
+    MyStringBuffer(PrintStream printStream) {
         mGyroWriter = printStream;
         mUpdatedBuilder = new StringBuffer(mCharCount);
         mBuilderToFile = null;
@@ -38,9 +38,6 @@ public final class MyStringBuffer {
         protected Integer doInBackground(StringBuffer... stringBuilders) {
             mGyroWriter.append(stringBuilders[0]);
             return 1;
-        }
-
-        protected void onPostExecute(Long result) {
         }
     }
 }
